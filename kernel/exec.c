@@ -6,12 +6,14 @@
 #include "proc.h"
 #include "defs.h"
 #include "elf.h"
+//#include "string.h"
 
 static int loadseg(pde_t *pgdir, uint64 addr, struct inode *ip, uint offset, uint sz);
 
 int
 exec(char *path, char **argv)
 {
+  //printf("%s\n",path);
   char *s, *last;
   int i, off;
   uint64 argc, sz, sp, ustack[MAXARG+1], stackbase;
@@ -56,6 +58,7 @@ exec(char *path, char **argv)
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
   }
+  
   iunlockput(ip);
   end_op(ROOTDEV);
   ip = 0;
@@ -112,6 +115,10 @@ exec(char *path, char **argv)
   p->tf->epc = elf.entry;  // initial program counter = main
   p->tf->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
+  if(strncmp(path,"/init",5)==0){
+    printf("pagetable %p\n",p->pagetable);
+    vmprint(p->pagetable,1);
+  }
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:
