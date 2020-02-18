@@ -412,9 +412,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
   pte_t *pte;
-/*  if(dstva >= MAXVA){
-    myproc()->killed =1;
-    return -1;*/
+
     if(dstva>=MAXVA)
       return -1;
 
