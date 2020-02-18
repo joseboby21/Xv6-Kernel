@@ -52,6 +52,8 @@ fdalloc(struct file *f)
   return -1;
 }
 
+
+
 uint64
 sys_dup(void)
 {
@@ -75,6 +77,7 @@ sys_read(void)
 
   if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
     return -1;
+
   return fileread(f, p, n);
 }
 
@@ -390,7 +393,7 @@ sys_chdir(void)
   char path[MAXPATH];
   struct inode *ip;
   struct proc *p = myproc();
-  
+
   begin_op(ROOTDEV);
   if(argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0){
     end_op(ROOTDEV);
@@ -472,6 +475,9 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+
+  
+  
   if(copyout(p->pagetable, fdarray, (char*)&fd0, sizeof(fd0)) < 0 ||
      copyout(p->pagetable, fdarray+sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0){
     p->ofile[fd0] = 0;
@@ -490,7 +496,7 @@ sys_crash(void)
   char path[MAXPATH];
   struct inode *ip;
   int crash;
-  
+
   if(argstr(0, path, MAXPATH) < 0 || argint(1, &crash) < 0)
     return -1;
   ip = create(path, T_FILE, 0, 0);

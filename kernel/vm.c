@@ -372,7 +372,11 @@ int cow(pagetable_t pagetable, uint64 va){
   pte_t *pte;
   uint64 pa;
   char * mem;
+  uint flags;
+
+
   va = PGROUNDDOWN(va);
+
   if((pte = walk(pagetable, va,0))==0){
     printf("There was no mapping found for the VA\n");
     return -1;
@@ -380,6 +384,8 @@ int cow(pagetable_t pagetable, uint64 va){
   if((*pte & PTE_COW)==0)
     return -1;
   pa = PTE2PA(*pte);
+  flags = PTE_FLAGS(*pte);
+  flags = (flags|PTE_W) & ~(PTE_COW);
   mem = kalloc();
   if(mem==0){
     printf("Heap out of memory for cow\n");
@@ -387,9 +393,9 @@ int cow(pagetable_t pagetable, uint64 va){
     exit(-1);
   }
   memmove(mem, (char*)pa, PGSIZE);
-  if(mappages(pagetable, va, PGSIZE, (uint64)mem, PTE_R|PTE_W|PTE_X|PTE_U) != 0){
+  if(mappages(pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
     kfree(mem);
-    printf("Mapping in r_scause =15 failed\n");
+    printf("Mapping in cow failed\n");
     myproc()->killed =1;
     exit(-1);
   }
@@ -406,11 +412,21 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
   pte_t *pte;
+/*  if(dstva >= MAXVA){
+    myproc()->killed =1;
+    return -1;*/
+    if(dstva>=MAXVA)
+      return -1;
+
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pte = walk(pagetable, va0,0);
-    if((*pte & PTE_COW))
+    if(va0<MAXVA && (*pte & PTE_COW) )
       cow(pagetable,va0);
+    else if(va0>=MAXVA){
+      printf("Tried to access location greater than MAXVA\n");
+      return -1;
+    }
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;
