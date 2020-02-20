@@ -373,6 +373,11 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
+  if(PGROUNDDOWN(dstva)>=MAXVA)
+    return -1;
+
+  if(walkaddr(pagetable,PGROUNDDOWN(dstva))==0)
+    uvmlazyalloc(pagetable, PGROUNDDOWN(dstva),len);
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
@@ -398,6 +403,12 @@ int
 copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
   uint64 n, va0, pa0;
+
+  if(PGROUNDDOWN(srcva)>=MAXVA)
+    return -1;
+
+  if(walkaddr(pagetable,PGROUNDDOWN(srcva))==0)
+    uvmlazyalloc(pagetable, PGROUNDDOWN(srcva),len);
 
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
@@ -485,3 +496,46 @@ void vmprint(pagetable_t pagetable,int level){
     }
   }
 }
+
+int uvmlazyalloc(pagetable_t pagetable, uint64 va, uint64 size){
+  uint64 a, last;
+  struct proc *p = myproc();
+
+  if(r_stval() > p->sz){
+      printf("Tried to access location greater than process size\n");
+      p->killed = 1;
+      exit(-1);
+    }
+
+    if(PGROUNDDOWN(r_stval()) == PGROUNDDOWN(p->tf->sp)-PGSIZE){
+      printf("Tried to access below stack %p\n", r_stval());
+      p->killed = 1;
+      exit(-1);
+    }
+
+  a = PGROUNDDOWN(va);
+  last = PGROUNDDOWN(va + size - 1);
+  pagetable = myproc()->pagetable;
+  for(;;){
+    //if(walkaddr(pagetable, a) == 0){
+      char *pa = kalloc();
+      if(pa == 0){
+        printf("Creation of page failed: lack of sufficient heap memory -- uvmlazyalloc --\n");
+        myproc()->killed = 1;
+        exit(-1);
+      }
+      if(mappages(pagetable, a, PGSIZE, (uint64)pa, PTE_R|PTE_W|PTE_U) < 0){
+        printf("Error in mapping page -- uvmlazyalloc --\n");
+        myproc()->killed = 1;
+        exit(-1);
+      }
+    //}
+
+    if(a == last)
+      break;
+    a += PGSIZE;
+  }
+
+  return 0;
+}
+
