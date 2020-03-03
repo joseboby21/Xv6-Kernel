@@ -15,8 +15,6 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
-struct spinlock common;
-
 struct run {
   struct run *next;
 };
@@ -26,7 +24,7 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem[8];
+} kmem[NCPU];
 
 
 
@@ -34,11 +32,9 @@ struct {
 void
 kinit()
 {
-  int cpu;
-  push_off();
-  cpu = cpuid();
-  pop_off();
-  initlock(&kmem[cpu].lock, "kmem");
+  for(int i=0;i<NCPU;++i){
+    initlock(&kmem[i].lock, "kmem");
+  }
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -63,8 +59,6 @@ kfree(void *pa)
   push_off();
   cpu = cpuid();
   pop_off();
-
-
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
@@ -77,46 +71,45 @@ kfree(void *pa)
   r->next = kmem[cpu].freelist;
   kmem[cpu].freelist = r;
   release(&kmem[cpu].lock);
+  
+  
 }
 
 // Allocate one 4096-byte page of physical memory.
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
 void *
-kalloc(void)
-{
-  //struct proc *p = myproc();
+kalloc(void){
   struct run *r;
+  int steal_pages = 1;
   int cpu;
+  int count =0;
   push_off();
   cpu = cpuid();
   pop_off();
-
+  
   acquire(&kmem[cpu].lock);
   if(!kmem[cpu].freelist){
-    for(int i=0;i<8;++i){
-      if(i!=cpu){
-        if(kmem[i].freelist){
-          for(int j=0;j<5;++j){
-            if(!kmem[cpu].freelist && kmem[i].freelist){
-               acquire(&kmem[i].lock);
-               kmem[cpu].freelist= kmem[i].freelist;
-               kmem[i].freelist = kmem[i].freelist->next;
-               kmem[cpu].freelist->next = 0;
-               release(&kmem[i].lock);
-            }
-            else if(kmem[i].freelist){
-              acquire(&kmem[i].lock);
+    for(int i=0;i<NCPU;++i){
+      if(count ==steal_pages)
+        break;
+      if(i!=cpu){  // So that the process does not try to take page from itself
+        if(kmem[i].freelist){     // To check if the searched process have free pages
+          for(int j=0;j<steal_pages-count;++j){
+            acquire(&kmem[i].lock);
+            if(kmem[i].freelist){
               r  = kmem[i].freelist;
               kmem[i].freelist = r->next;
               r->next = kmem[cpu].freelist;
               kmem[cpu].freelist = r;
               release(&kmem[i].lock);
+              count ++;
             }
-            else
+            else{
+              release(&kmem[i].lock);
               break;
+            }
           }
-
         }
       }
     }
@@ -125,13 +118,9 @@ kalloc(void)
 
   
   if(!kmem[cpu].freelist){
-    //printf("System ran out of memory\n");
     release(&kmem[cpu].lock);
     return 0;
-    //p->killed = 1;
-    //exit(1);
   }
-  //release(&kmem[cpu].lock);
   r = kmem[cpu].freelist;
   if(r)
     kmem[cpu].freelist = r->next;
@@ -139,5 +128,6 @@ kalloc(void)
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+  
   return (void*)r;
 }
