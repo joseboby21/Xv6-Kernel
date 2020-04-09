@@ -116,7 +116,7 @@ e1000_transmit(struct mbuf *m)
   tx_ring[indx].length = m->len;
   tx_ring[indx].cmd = E1000_TXD_CMD_RS;
   tx_mbufs[indx] = m;
-  tx_ring[indx].status = 0;
+  tx_ring[indx].status = tx_ring[indx].status| ~(E1000_TXD_STAT_DD);
   regs[E1000_TDT] = (indx+1)%TX_RING_SIZE;
   release(&e1000_lock);
   printf("T: %d\n",indx);
@@ -143,9 +143,9 @@ e1000_recv(void)
   release(&e1000_lock);
   net_rx(rx_mbufs[indx]);
   acquire(&e1000_lock);
-  rx_mbufs[indx] = mbufalloc(0);
+  rx_mbufs[indx] = mbufalloc(128);
   rx_ring[indx].addr = (uint64)rx_mbufs[indx]->head;
-  rx_ring[indx].status = 0;
+  rx_ring[indx].status = rx_ring[indx].status |~(E1000_TXD_STAT_DD);
   regs[E1000_RDT] = indx;
   printf("R: %d\n",indx);
   release(&e1000_lock);
