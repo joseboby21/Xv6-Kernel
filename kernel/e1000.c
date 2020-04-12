@@ -114,12 +114,12 @@ e1000_transmit(struct mbuf *m)
     mbuffree(tx_mbufs[indx]);
   tx_ring[indx].addr = (uint64)m->head;
   tx_ring[indx].length = m->len;
-  tx_ring[indx].cmd = E1000_TXD_CMD_RS;
+  tx_ring[indx].cmd = E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP ;
   tx_mbufs[indx] = m;
-  tx_ring[indx].status = tx_ring[indx].status| ~(E1000_TXD_STAT_DD);
+  tx_ring[indx].status = tx_ring[indx].status & ~(E1000_TXD_STAT_DD);
   regs[E1000_TDT] = (indx+1)%TX_RING_SIZE;
   release(&e1000_lock);
-  printf("T: %d\n",indx);
+  //printf("T: %d\n",indx);
   return 0;
 }
 
@@ -132,6 +132,7 @@ e1000_recv(void)
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
+  while(1){
   acquire(&e1000_lock);
   uint32 indx;
   indx = (regs[E1000_RDT]+1)%RX_RING_SIZE;
@@ -139,16 +140,16 @@ e1000_recv(void)
     release(&e1000_lock);
     return;
   }
+  struct mbuf *m = rx_mbufs[indx];
   mbufput(rx_mbufs[indx],rx_ring[indx].length);
-  release(&e1000_lock);
-  net_rx(rx_mbufs[indx]);
-  acquire(&e1000_lock);
-  rx_mbufs[indx] = mbufalloc(128);
+  rx_mbufs[indx] = mbufalloc(0);
   rx_ring[indx].addr = (uint64)rx_mbufs[indx]->head;
-  rx_ring[indx].status = rx_ring[indx].status |~(E1000_TXD_STAT_DD);
+  rx_ring[indx].status = rx_ring[indx].status & ~(E1000_TXD_STAT_DD);
   regs[E1000_RDT] = indx;
-  printf("R: %d\n",indx);
   release(&e1000_lock);
+  net_rx(m);
+  //printf("R: %d\n",indx);
+  }
 }
 
 void

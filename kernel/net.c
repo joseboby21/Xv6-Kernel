@@ -309,6 +309,7 @@ net_rx_udp(struct mbuf *m, uint16 len, struct ip *iphdr)
   sip = ntohl(iphdr->ip_src);
   sport = ntohs(udphdr->sport);
   dport = ntohs(udphdr->dport);
+  //printf("Call sockrecv\n");
   sockrecvudp(m, sip, dport, sport);
   return;
 

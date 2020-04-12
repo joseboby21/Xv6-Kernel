@@ -20,7 +20,7 @@ ping(uint16 sport, uint16 dport, int attempts)
 
   // you can send a UDP packet to any Internet address
   // by using a different dst.
-  
+  //printf("%d",sport);
   if((fd = connect(dst, sport, dport)) < 0){
     fprintf(2, "ping: connect() failed\n");
     exit(1);
@@ -35,6 +35,7 @@ ping(uint16 sport, uint16 dport, int attempts)
 
   char ibuf[128];
   int cc = read(fd, ibuf, sizeof(ibuf));
+  //printf("%d",cc);
   if(cc < 0){
     fprintf(2, "ping: recv() failed\n");
     exit(1);
@@ -45,6 +46,7 @@ ping(uint16 sport, uint16 dport, int attempts)
     fprintf(2, "ping didn't receive correct payload\n");
     exit(1);
   }
+  //printf("Hello\n");
 }
 
 // Encode a DNS name
@@ -225,11 +227,12 @@ main(int argc, char *argv[])
 {
   int i, ret;
   uint16 dport = NET_TESTS_PORT;
+  //uint16 dport = 26099;
 
   printf("nettests running on port %d\n", dport);
 
   printf("testing one ping: ");
-  ping(2000, dport, 2);
+  ping(2000, dport, 1);
   printf("OK\n");
 
   printf("testing single-process pings: ");
@@ -240,6 +243,9 @@ main(int argc, char *argv[])
   printf("testing multi-process pings: ");
   for (i = 0; i < 10; i++){
     int pid = fork();
+    if(pid<0){
+      printf("%d\n",i);
+    }
     if (pid == 0){
       ping(2000 + i + 1, dport, 1);
       exit(0);
@@ -247,6 +253,7 @@ main(int argc, char *argv[])
   }
   for (i = 0; i < 10; i++){
     wait(&ret);
+    //printf("Hello\n");
     if (ret != 0)
       exit(1);
   }
