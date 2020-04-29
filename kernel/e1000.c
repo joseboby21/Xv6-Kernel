@@ -144,7 +144,7 @@ e1000_recv(void)
   mbufput(rx_mbufs[indx],rx_ring[indx].length);
   rx_mbufs[indx] = mbufalloc(0);
   rx_ring[indx].addr = (uint64)rx_mbufs[indx]->head;
-  rx_ring[indx].status = rx_ring[indx].status & ~(E1000_TXD_STAT_DD);
+  rx_ring[indx].status = 0;
   regs[E1000_RDT] = indx;
   release(&e1000_lock);
   net_rx(m);
