@@ -1,43 +1,33 @@
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern RISC-V multiprocessor using ANSI C.
+In this lab I have implemented user level threads and alarm system call.
 
-ACKNOWLEDGMENTS
+User Level threads
+As part of the lab a context switching mechanism is implemented to support user-level threading system. 
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)). See also https://pdos.csail.mit.edu/6.828/, which
-provides pointers to on-line resources for v6.
+The two functions that need to be written are thread_create and thread_schedule functions. 
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+In thread_create function, you need to go through the list of available threads and find a free thread.
+Then initialize the stack for that thread. When initializing the stack, you need to reserve space for saving 
+the state of thread when context switch of the thread takes place. For RISC V you need to save fifteen registers 
+and therefore 120 bytes is reserved inside the stack. Only the remaining space inside the stack is given for 
+saving user data of the thread. The bottom of the stack is updated with address of function which needs to be 
+executed by this thread when it is scheduled.
 
-We are also grateful for the bug reports and patches contributed by
-Silas Boyd-Wickizer, Anton Burtsev, Dan Cross, Cody Cutler, Mike CAT,
-Tej Chajed, eyalz800, Nelson Elhage, Saar Ettinger, Alice Ferrazzi,
-Nathaniel Filardo, Peter Froehlich, Yakir Goaron,Shivam Handa, Bryan
-Henry, Jim Huang, Alexander Kapshuk, Anders Kaseorg, kehao95, Wolfgang
-Keller, Eddie Kohler, Austin Liew, Imbar Marinescu, Yandong Mao, Matan
-Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark Morrissey, mtasm, Joel
-Nider, Greg Price, Ayan Shafqat, Eldar Sehayek, Yongming Shen, Cam
-Tenny, tyfkda, Rafael Ubal, Warren Toomey, Stephen Tu, Pablo Ventura,
-Xi Wang, Keiichi Watanabe, Nicolas Wolovick, wxdao, Grant Wu, Jindong
-Zhang, Icenowy Zheng, and Zou Chang Wei.
+In thread_schedule function you need to go through the list of available threads and find a thread which has its 
+state as runnable. If no such thread exists, the function returns with error. If we can find such a thread. First 
+change its state from runnable to running. Then save the registers of old thread into its own stack and then pop the 
+saved registers of new thread from its stack into actual registers of RISCV. 
 
-The code in the files that constitute xv6 is
-Copyright 2006-2019 Frans Kaashoek, Robert Morris, and Russ Cox.
 
-ERROR REPORTS
-
-Please send errors and suggestions to Frans Kaashoek and Robert Morris
-(kaashoek,rtm@mit.edu). The main purpose of xv6 is as a teaching
-operating system for MIT's 6.828, so we are more interested in
-simplifications and clarifications than new features.
-
-BUILDING AND RUNNING XV6
-
-You will need a RISC-V "newlib" tool chain from
-https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
-riscv64-softmmu. Once they are installed, and in your shell
-search path, you can run "make qemu".
+Alarm Systemcall
+As part of this exercise a feature is added to the Xv6 that periodically alerts a process as it uses CPU time. For this, 
+a new system call called sigalarm and sigreturn is added. Sigalarm takes two parameters as input, interval and handler. 
+Interval is the number of CPU clocks it needs to wait and handler is the job it needs to do once required amount of CPU 
+ticks takes place. Sigreturn is called by the handler after it completes its job so that the process returns to the instruction 
+at which handler was called. Three new fields are added to the process structure, first to store the number of ticks it 
+needs to wait for before running the handler, second the number of completed ticks and finally the address of the handler. 
+So, when a process calls sigalarm systemcall the process structure is updated with the interval and the address of handler. 
+Also, a page is allocated in the process address space to store the trapframe when handler is invoked. After that, modify 
+the kernel trap so that when a process's alarm interval expires, the process executes the handler. When the handler job is 
+completed it calls the system call sigreturn. The function of sigreturn is to reset the counter and update the trapframe with 
+the trapframe which was saved before calling the handler so that the process returns to the instruction during which handler 
+was triggered.
