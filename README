@@ -1,43 +1,40 @@
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern RISC-V multiprocessor using ANSI C.
+The aim of this lab is to write a device driver for NIC and extend the file system abstraction of Xv6 to support UDP network sockets.
 
-ACKNOWLEDGMENTS
+The code for discovering,initializing the device,and handling interrupts was given. The code for sending and 
+receiving packets is absent. I must fill the missing code to complete the driver part of the lab.
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)). See also https://pdos.csail.mit.edu/6.828/, which
-provides pointers to on-line resources for v6.
+Driver
+Two functions e1000_recv() and e1000_transmit() are written inside kernel/e1000.c. The sending and receiving 
+of packets are managed by a queue of descriptors that is shared between Xv6 and E1000 in memory. These queues 
+provide pointers to memory locations for the E1000 to DMA packet data. 
+They are implemented as circular arrays.
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+The receive code is written such that whenever an interrupt is raised by E1000. The code scans the RX queue to 
+handle each packet that has arrived and deliver the buffer pointed in RX queue(mbuf) to the protocol layer. 
+After that you need to create a new mbuf and put its pointer in the RX queue for the new incoming data to be
+stored when it reaches the same position later.
 
-We are also grateful for the bug reports and patches contributed by
-Silas Boyd-Wickizer, Anton Burtsev, Dan Cross, Cody Cutler, Mike CAT,
-Tej Chajed, eyalz800, Nelson Elhage, Saar Ettinger, Alice Ferrazzi,
-Nathaniel Filardo, Peter Froehlich, Yakir Goaron,Shivam Handa, Bryan
-Henry, Jim Huang, Alexander Kapshuk, Anders Kaseorg, kehao95, Wolfgang
-Keller, Eddie Kohler, Austin Liew, Imbar Marinescu, Yandong Mao, Matan
-Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark Morrissey, mtasm, Joel
-Nider, Greg Price, Ayan Shafqat, Eldar Sehayek, Yongming Shen, Cam
-Tenny, tyfkda, Rafael Ubal, Warren Toomey, Stephen Tu, Pablo Ventura,
-Xi Wang, Keiichi Watanabe, Nicolas Wolovick, wxdao, Grant Wu, Jindong
-Zhang, Icenowy Zheng, and Zou Chang Wei.
+The transmit code is invoked by the protocol layer, whenever it has packets to send. The transmit code must enqueue 
+the pointer to mbuf in the TX queue. The code makes sure that mbufs are eventually freed, but only after transmission 
+has finished (The NIC encodes a notification bit in the descriptor to indicate this.)
 
-The code in the files that constitute xv6 is
-Copyright 2006-2019 Frans Kaashoek, Robert Morris, and Russ Cox.
+The interaction with E1000 is through memory mapped I/O. The pointers to device IO is stores in regs.
 
-ERROR REPORTS
 
-Please send errors and suggestions to Frans Kaashoek and Robert Morris
-(kaashoek,rtm@mit.edu). The main purpose of xv6 is as a teaching
-operating system for MIT's 6.828, so we are more interested in
-simplifications and clarifications than new features.
+Network Sockets
+The functions for closing, reading, writing UDP socket and delivery of UDP packet to the appropriate reader is to be added. 
 
-BUILDING AND RUNNING XV6
+In the code for closing socket you need to go through the list of active sockets to find the socket which you need to close. 
+Once the required socket is found. All its mbufs, if any are freed. Then finally the socket is freed from the memory.
 
-You will need a RISC-V "newlib" tool chain from
-https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
-riscv64-softmmu. Once they are installed, and in your shell
-search path, you can run "make qemu".
+In the write code. The data to be written to socket is first copied into an mbuf structure. If the data is too big for a single mbuf. 
+The data is split into multiple mbufs. Then these mbuf are passed to the protocol layer for sending to the device.
+
+In the read code. We first check whether the socket to be read has any mbufs to be read. If not  the calling process is put into 
+sleep till some data is there to be read. If there is data to be read the data is then copied from the mbuf to the address space 
+of the calling process.
+
+The delivery code(sockrecvudp()). The protocol layer delivers the packets for waiting process to the delivery code. When protocol 
+layer calls this code. The code searches through the list of active sockets to find out the destination socket. Once it finds out 
+the destination socket. The buffer is put to the receive queue of that socket and the process is waken up. If no active socket is 
+found for an incoming buffer. The buffer is discarded
