@@ -1,3 +1,16 @@
+As part of my advanced embedded operating systems coursework. The Xv6 (A multiprocessor operating system for RISC-V) kernel is extended to support sophisticated 
+virtual memory features and network protocols.
+Features Implemented:
+•	 Lazy allocation of pages to process.  Branch-> lazy
+•	 Copy-on-write of pages. Branch->cow
+•	 Redesigned page allocation to increase parallelism by reducing lock contention. Branch->lock
+•	 User level threads and alarm signal (system call). Branch->syscall
+•	 Double-indirect blocks to support large files and symbolic link. Branch->fs
+•	 Device driver for NIC and extended the Xv6 file system abstraction to support UDP packets. Branch->net
+
+The code for each of these labs could be seen in the corresponding branch.
+
+
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
