@@ -1,4 +1,4 @@
-Changes were made to uvmcopy() in vm.c so that when a child process is created no new pages are allocated for it, rather the child and parent shares 
+Changes were made to uvmcopy() in vm.c so that when a child process is created no new pages are allocated for it,rather the child and parent shares 
 the same pages and the reference count for the shared pages are kept track.
 
 The cow flag is set, and the write flag is cleared for the virtual address of shared pages of both parent and child.
