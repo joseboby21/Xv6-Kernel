@@ -1,43 +1,21 @@
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern RISC-V multiprocessor using ANSI C.
+The file system lab asks you to equip the Xv6 kernel to support large files and symbolic links
 
-ACKNOWLEDGMENTS
+Large Files
+The Xv6 file size supports 268 blocks. This limit comes from the fact that Xv6 inode supports 12 direct pointers and 1 indirect pointer 
+ie 12 + 256. So, to support even bigger files double indirect pointers are added to xv6 inode.
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)). See also https://pdos.csail.mit.edu/6.828/, which
-provides pointers to on-line resources for v6.
+So to acheive this, the bmap() in fs.c should be modified. bmap() is called both when reading and writing a file. When writing, 
+bmap() allocates new blocks as needed to hold the file content, as well as allocating indirect block if needed. Currently the first 
+12 elements of ip->addrs[] is the direct blocks, the 13th is the single indirect block. After modification the first 11 elements 
+of ip->addrs[] are the direct blocks, the 12th is the single indirect block and the thriteenth the double indirect blocks. After this 
+the itruc() in fs.c should also be modified to support double indirect blocks. The itrunc() is called when truncating the file to zero, 
+that is freeing all the blocks currently in the possession of the inode passed to it. 
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
-
-We are also grateful for the bug reports and patches contributed by
-Silas Boyd-Wickizer, Anton Burtsev, Dan Cross, Cody Cutler, Mike CAT,
-Tej Chajed, eyalz800, Nelson Elhage, Saar Ettinger, Alice Ferrazzi,
-Nathaniel Filardo, Peter Froehlich, Yakir Goaron,Shivam Handa, Bryan
-Henry, Jim Huang, Alexander Kapshuk, Anders Kaseorg, kehao95, Wolfgang
-Keller, Eddie Kohler, Austin Liew, Imbar Marinescu, Yandong Mao, Matan
-Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark Morrissey, mtasm, Joel
-Nider, Greg Price, Ayan Shafqat, Eldar Sehayek, Yongming Shen, Cam
-Tenny, tyfkda, Rafael Ubal, Warren Toomey, Stephen Tu, Pablo Ventura,
-Xi Wang, Keiichi Watanabe, Nicolas Wolovick, wxdao, Grant Wu, Jindong
-Zhang, Icenowy Zheng, and Zou Chang Wei.
-
-The code in the files that constitute xv6 is
-Copyright 2006-2019 Frans Kaashoek, Robert Morris, and Russ Cox.
-
-ERROR REPORTS
-
-Please send errors and suggestions to Frans Kaashoek and Robert Morris
-(kaashoek,rtm@mit.edu). The main purpose of xv6 is as a teaching
-operating system for MIT's 6.828, so we are more interested in
-simplifications and clarifications than new features.
-
-BUILDING AND RUNNING XV6
-
-You will need a RISC-V "newlib" tool chain from
-https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
-riscv64-softmmu. Once they are installed, and in your shell
-search path, you can run "make qemu".
+Symbolic Links
+Symbolic links refers to the linked file by pathname. When symbolic link is opened, the kernel follows the link to the referred 
+file. First a new systemcall number is created for symlink by adding entries to user/usys.pl, user/user.h. Then a new file type 
+T_SYMLINK is added to kenel/stat.h to represent symbolic link. A new kernel flag O_NOFOLLOW that can be used with open systemcall 
+is created tell no need to follow symbolic link. Then the actual system call symlink(target,path) is implemented. Then open system 
+call is modified to handle file of type T_SYMLINK and when O_NOFOLLOW flag is used for opening symbolic file(NO need to follow the 
+path just opens symbolic file).The symbolic link implementation is such that the symbolic link recurses to a depth of 10 links,
+more than that then open systemcall fails.
